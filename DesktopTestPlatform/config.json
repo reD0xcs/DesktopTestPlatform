@@ -1,0 +1,11 @@
+{
+    "raspberry_pi": {
+        "host": "192.168.43.218",
+        "port": 8000
+    },
+
+    "application": {
+        "theme": "dark",
+        "refresh_rate": 500
+    }
+}
