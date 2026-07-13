@@ -6,6 +6,7 @@ from typing import Any
 class Parameter:
 
     id: str
+
     name: str
 
     type: str
@@ -19,6 +20,7 @@ class Parameter:
     unit: str = ""
 
     minimum: float | None = None
+
     maximum: float | None = None
 
     options: list[Any] | None = None

@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from legacy.psu import PowerSupply
+from archive.psu import PowerSupply
 
 ctk.set_appearance_mode("dark")
 

@@ -1,10 +1,10 @@
 import customtkinter as ctk
 
 from core.device_manager import DeviceManager
+from core.action_registry import ActionRegistry
+from core.product_serializer import ProductSerializer
 
-
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+from ui.product_editor import ProductEditor
 
 
 class MainWindow(ctk.CTk):
@@ -12,43 +12,24 @@ class MainWindow(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Hardware Test Platform")
-        self.geometry("1200x700")
+        self.title("Desktop Test Platform")
+        self.geometry("500x300")
 
-        # Managers
         self.device_manager = DeviceManager()
+        self.action_registry = ActionRegistry(self.device_manager)
+        self.serializer = ProductSerializer()
 
-        print("\n========== DEVICES ==========")
-
-        devices = self.device_manager.get_devices()
-
-        print("\nPower Supplies:")
-
-        for ps in devices["power_supplies"]:
-            print(f"  • {ps['name']} ({ps['id']})")
-
-        print("=============================\n")
-
-        ctk.CTkLabel(
+        ctk.CTkButton(
             self,
-            text="Hardware Test Platform",
-            font=("Arial", 28, "bold")
-        ).pack(pady=40)
+            text="Product Editor",
+            width=200,
+            command=self.open_product_editor
+        ).pack(pady=20)
 
-        ctk.CTkLabel(
+    def open_product_editor(self):
+
+        ProductEditor(
             self,
-            text="Architecture initialized successfully",
-            font=("Arial", 18)
-        ).pack()
-        
-        print("\nChecking Raspberry Pi...")
-
-        try:
-
-            status = self.device_manager.pi.health()
-
-            print(status)
-
-        except Exception as ex:
-
-            print(ex)
+            self.action_registry,
+            self.serializer
+        )

@@ -1,5 +1,7 @@
 import requests
 from config.settings import settings
+from models.action import Action
+from models.parameter import Parameter
 
 class PiClient:
 
@@ -39,6 +41,31 @@ class PiClient:
         response.raise_for_status()
 
         return response.json()
+
+    def get_actions(self) -> list[Action]:
+
+        actions = []
+
+        try:
+            tests = self.get_tests()
+
+        except requests.RequestException:
+            print("⚠ Raspberry Pi offline")
+            return actions
+
+        for test in tests:
+            actions.append(
+                Action(
+                    id=f"pi.{test['id']}",
+                    name=test["name"],
+                    device="raspberry_pi",
+                    category="Raspberry Pi",
+                    description=test.get("description", ""),
+                    parameters=[]
+                )
+            )
+
+        return actions
 
     def run_test(self, test_id):
 

@@ -10,6 +10,8 @@ class Action:
 
     name: str
 
+    device: str
+
     category: str
 
     description: str = ""

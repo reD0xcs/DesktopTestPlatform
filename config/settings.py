@@ -5,7 +5,7 @@ class Settings:
     
     def __init__(self):
         
-        config_file = Path("config.json")
+        config_file = Path("config/config.json")
         
         with open(config_file, "r") as file:
             self.data = json.load(file)
