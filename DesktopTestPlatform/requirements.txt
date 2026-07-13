@@ -1,4 +1,0 @@
-customtkinter
-owon-psu==0.0.5
-pyserial
-requests
