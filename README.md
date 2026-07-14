@@ -2,15 +2,25 @@
 
 ## Overview
 
-Hardware Test Platform este aplicația desktop responsabilă pentru controlul echipamentelor de test și coordonarea execuției testelor automate.
+The **Hardware Test Platform** is a desktop application designed to orchestrate automated hardware testing for electronic products.
 
-Aplicația comunică cu:
+It provides a modular and extensible architecture capable of controlling multiple types of laboratory equipment while executing configurable test sequences.
 
-* surse de alimentare (Power Supplies);
-* Raspberry Pi Test Server (prin REST API);
-* în viitor alte dispozitive (camere, PLC-uri, cititoare de coduri de bare, multimetre etc.).
+The application currently communicates with:
 
-Scopul proiectului este construirea unei platforme modulare și extensibile pentru testarea produselor electronice.
+- Programmable Power Supplies
+- Raspberry Pi Test Server (REST API)
+
+Future support will include:
+
+- Cameras
+- Barcode Readers
+- Multimeters
+- PLCs
+- Relay Boards
+- Additional laboratory equipment
+
+The long-term goal is to provide a flexible, plugin-based hardware testing platform suitable for production environments.
 
 ---
 
@@ -20,22 +30,34 @@ Scopul proiectului este construirea unei platforme modulare și extensibile pent
 Desktop Application
 │
 ├── UI
+│   ├── Main Window
+│   ├── Product Manager
+│   ├── Product Editor
+│   ├── Run Window
+│   └── Dialogs
 │
 ├── Core
 │   ├── DeviceManager
+│   ├── ActionRegistry
+│   ├── ActionExecutor
+│   ├── ProductSerializer
 │   ├── PiClient
-│   └── (future) TestRunner
+│   └── Configuration
 │
-└── Devices
-    ├── Power Supplies
-    │   ├── Base
-    │   ├── Manager
-    │   └── Plugins
-    │
-    ├── Cameras (future)
-    ├── Barcode Readers (future)
-    ├── Raspberry Pi (API Client)
-    └── Other Devices...
+├── Devices
+│   ├── Power Supplies
+│   │   ├── Base
+│   │   ├── Manager
+│   │   └── Plugins
+│   │
+│   ├── Raspberry Pi
+│   ├── Cameras (future)
+│   ├── Barcode Readers (future)
+│   ├── Multimeters (future)
+│   └── Other Devices...
+│
+└── Products
+    └── JSON Files
 ```
 
 ---
@@ -55,8 +77,11 @@ DesktopTestPlatform/
 │   └── settings.py
 │
 ├── core/
+│   ├── action_executor.py
+│   ├── action_registry.py
 │   ├── device_manager.py
-│   └── pi_client.py
+│   ├── pi_client.py
+│   └── product_serializer.py
 │
 ├── devices/
 │   └── power_supplies/
@@ -65,22 +90,180 @@ DesktopTestPlatform/
 │       ├── manager.py
 │       └── owon.py
 │
+├── models/
+│
 ├── ui/
-│   ├── __init__.py
-│   └── main_window.py
+│   ├── main_window.py
+│   ├── product_editor.py
+│   ├── product_manager.py
+│   ├── run_window.py
+│   ├── confirm_dialog.py
+│   └── info_dialog.py
+│
+├── actions/
 │
 ├── products/
 │
-└── reports/
+├── reports/
+│
+└── logs/
 ```
+
+---
+
+# Product System
+
+Each hardware test is stored as a **Product**.
+
+A product consists of an ordered list of executable actions.
+
+Example:
+
+```
+Power Supply → Set Voltage
+
+Power Supply → Enable Output
+
+System → Delay
+
+Raspberry Pi → RGB Test
+
+Power Supply → Disable Output
+```
+
+Products are stored as JSON files inside the `products/` directory and can be:
+
+- Created
+- Edited
+- Saved
+- Loaded
+- Deleted
+- Executed
+
+---
+
+# Product Editor
+
+The Product Editor allows users to visually create and modify products.
+
+Current features include:
+
+- Create new products
+- Save products
+- Load existing products
+- Delete products
+- Add actions
+- Remove actions
+- Reorder actions
+- Edit action parameters
+- Confirmation dialogs
+- Success notifications
+
+---
+
+# Product Manager
+
+The Product Manager provides quick access to all available products.
+
+Current features:
+
+- Browse products
+- Open products
+- Create new products
+- Delete products
+- Run products
+
+---
+
+# Test Runner
+
+The Test Runner executes product actions sequentially.
+
+Current features:
+
+- Execute products
+- Overall progress bar
+- Current step progress
+- Live execution log
+- Elapsed execution time
+- Stop execution
+- Success / Failure reporting
+
+The execution engine delegates each action to the appropriate hardware controller through the `ActionExecutor`.
+
+---
+
+# Action System
+
+Every executable operation is represented by an **Action**.
+
+Examples:
+
+```
+system.delay
+
+system.message
+
+owon.set_voltage
+
+owon.output_on
+
+pi.rgb
+```
+
+Each action defines:
+
+- Identifier
+- Display name
+- Category
+- Description
+- Parameters
+
+The Product Editor automatically generates parameter editors based on the action definition.
+
+---
+
+# Action Executor
+
+The `ActionExecutor` is responsible for executing product actions.
+
+Depending on the action type, it dispatches commands to:
+
+- System actions
+- Power Supply devices
+- Raspberry Pi
+- Future hardware devices
+
+This keeps the UI completely independent from hardware implementation details.
+
+---
+
+# DeviceManager
+
+`DeviceManager` acts as the application's central hardware gateway.
+
+Currently managed devices:
+
+- PowerSupplyManager
+- Raspberry Pi Client
+
+Future additions:
+
+- CameraManager
+- BarcodeManager
+- PLCManager
+- MultimeterManager
+- RelayManager
+
+The graphical interface communicates exclusively with `DeviceManager`.
 
 ---
 
 # Power Supply Plugin System
 
-Fiecare sursă de alimentare este implementată ca un plugin.
+Every power supply is implemented as a plugin.
 
-Exemplu:
+Example:
 
 ```
 devices/power_supplies/
@@ -90,53 +273,31 @@ devices/power_supplies/
     keysight.py
 ```
 
-Toate plugin-urile moștenesc:
+Each implementation inherits from:
 
 ```
 PowerSupplyBase
 ```
 
-și sunt încărcate automat prin:
+Plugins are automatically discovered by:
 
 ```
 PowerSupplyManager
 ```
 
-Astfel, adăugarea unei noi surse presupune doar crearea unui nou fișier Python.
+Adding support for a new power supply only requires creating a new Python module.
 
-Nu este necesară modificarea aplicației.
-
----
-
-# DeviceManager
-
-`DeviceManager` reprezintă punctul unic de acces către toate dispozitivele disponibile.
-
-În prezent gestionează:
-
-* PowerSupplyManager
-* PiClient
-
-În viitor va gestiona și:
-
-* CameraManager
-* BarcodeManager
-* PLCManager
-* MultimeterManager
-
-GUI-ul comunică exclusiv cu `DeviceManager`, fără a cunoaște implementările interne.
+No changes to the application core are necessary.
 
 ---
 
 # Raspberry Pi Integration
 
-Desktop-ul nu execută teste direct.
+Hardware-specific tests are executed remotely on a Raspberry Pi.
 
-Toate testele hardware sunt executate pe Raspberry Pi.
+Communication is performed through a REST API.
 
-Comunicarea se face prin REST API.
-
-Exemple:
+Typical endpoints:
 
 ```
 GET /tests
@@ -146,25 +307,25 @@ GET /tests/{id}
 POST /tests/{id}/run
 ```
 
-Aceste endpoint-uri sunt accesate prin clasa:
+The desktop application communicates through:
 
 ```
 PiClient
 ```
 
-GUI-ul nu conține apeluri HTTP directe.
+No HTTP requests are performed directly from the UI.
 
 ---
 
 # Configuration
 
-Configurația aplicației este stocată în:
+Application configuration is stored in:
 
 ```
 config.json
 ```
 
-Exemplu:
+Example:
 
 ```json
 {
@@ -180,118 +341,146 @@ Exemplu:
 }
 ```
 
-Fișierul este încărcat prin:
+The configuration is loaded through:
 
 ```
 config/settings.py
 ```
 
-și este accesibil în aplicație prin:
-
-```python
-settings.raspberry_pi.host
-settings.raspberry_pi.port
-settings.application.theme
-```
+and exposed as strongly typed settings.
 
 ---
 
-# Current Status
+# Current Features
 
-Implemented:
+## Core
 
-* Project architecture
-* Modular Power Supply system
-* PowerSupplyBase
-* OwonPowerSupply plugin
-* Automatic plugin discovery
-* DeviceManager
-* Raspberry Pi REST client
-* Typed application configuration
+- Modular architecture
+- Device Manager
+- Action Registry
+- Action Executor
+- Product Serializer
+- Typed configuration
 
-Communication between Desktop and Raspberry Pi has been successfully tested.
+## Hardware
+
+- Plugin-based power supply system
+- Automatic plugin discovery
+- Owon power supply support
+- Raspberry Pi REST client
+
+## Product Management
+
+- Create products
+- Edit products
+- Save / Load products
+- Delete products
+- JSON persistence
+
+## Product Editor
+
+- Visual action editor
+- Parameter editor
+- Step reordering
+- Confirmation dialogs
+- Success notifications
+
+## Test Runner
+
+- Product execution
+- Progress tracking
+- Step progress
+- Live logging
+- Stop execution
+- Execution timer
 
 ---
 
 # Planned Features
 
-## Test Runner
+## Runner
 
-Motor responsabil pentru executarea secvențelor de test.
+- Pause / Resume
+- Skip current step
+- Retry failed step
+- Estimated remaining time (ETA)
+- Thread-safe UI updates
+- PASS / FAIL status indicators
 
-Acesta va coordona:
+## Operator Actions
 
-* sursa de alimentare;
-* Raspberry Pi;
-* alte dispozitive.
+- Message dialogs
+- Confirmation dialogs
+- User input actions
 
-GUI-ul va apela doar:
+## Validation Actions
 
-```python
-test_runner.run(product)
-```
+- Wait for voltage
+- Wait for GPIO
+- Timeout support
+- Measurement validation
 
----
+## Product Variables
+
+- User-defined variables
+- Variable substitution
+- Automatic timestamps
+
+## Logging
+
+- Automatic log files
+- Execution reports
+- PASS / FAIL summaries
+
+## Product Manager
+
+- Search
+- Sorting
+- Product metadata
+- Duplicate products
+
+## Device Manager
+
+- Live connection status
+- Connect / Disconnect
+- Device information
 
 ## Product Editor
 
-Utilizatorul va putea crea produse noi și defini secvențe de test personalizate.
+- Copy / Paste actions
+- Duplicate actions
+- Drag & Drop
+- Enable / Disable actions
+- Undo / Redo
 
-Exemplu:
+## Import / Export
 
-```
-Product
-
-├── Set Voltage
-├── Enable Output
-├── RGB Test
-├── Current Measurement
-├── Disable Output
-```
-
-Ordinea va putea fi modificată prin interfața grafică.
-
----
-
-## Reports
-
-Generarea automată a rapoartelor de test.
-
----
-
-## Additional Device Support
-
-Planificat:
-
-* Rigol Power Supplies
-* Keysight Power Supplies
-* Cameras
-* Barcode Readers
-* PLCs
-* Multimeters
-* Relay Boards
-
-Fiecare dispozitiv va fi implementat ca plugin și detectat automat.
+- Import JSON
+- Export JSON
+- Drag & Drop support
+- Product templates
 
 ---
 
 # Design Principles
 
-* Modular architecture
-* Plugin-based devices
-* Automatic discovery
-* Separation of UI and business logic
-* Configuration outside the source code
-* Extensible hardware support
-* Clean and maintainable codebase
+- Modular architecture
+- Plugin-based hardware support
+- Automatic device discovery
+- Separation of UI and business logic
+- Strongly typed models
+- JSON-based product storage
+- Extensible action system
+- Maintainable codebase
 
 ---
 
 # Current Goal
 
-Construirea unei platforme complete de testare hardware în care:
+The objective of the project is to build a complete, modular hardware testing platform where:
 
-* Desktop-ul orchestrează execuția testelor;
-* Raspberry Pi execută testele hardware;
-* Dispozitivele sunt extensibile prin plugin-uri;
-* Produsele și secvențele de test sunt configurabile din interfața grafică.
+- The Desktop application orchestrates test execution.
+- Raspberry Pi devices perform hardware-specific tests.
+- Laboratory equipment is integrated through plugins.
+- Products are fully configurable through a graphical interface.
+- New hardware can be added with minimal changes to the existing codebase.
