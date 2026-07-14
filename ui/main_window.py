@@ -45,5 +45,6 @@ class MainWindow(ctk.CTk):
         ProductManager(
             self,
             self.serializer,
-            self.action_registry
+            self.action_registry,
+            self.device_manager
         )

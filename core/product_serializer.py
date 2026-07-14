@@ -32,6 +32,10 @@ class ProductSerializer:
         filename = self.directory / f"{product.name}.json"
 
         with open(filename, "w", encoding="utf-8") as f:
+            print("========== SAVE ==========")
+
+            for action in product.actions:
+                print(action.action_id, action.values)
             json.dump(data, f, indent=4)
 
     def load(self, name: str) -> Product:
@@ -57,7 +61,9 @@ class ProductSerializer:
                     values=item["values"],
                     enabled=item["enabled"]
                 )
+
             )
+            print("LOAD:", item["values"])
 
         return product
 

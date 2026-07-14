@@ -439,27 +439,22 @@ class ProductEditor(ctk.CTkToplevel):
             product_action
         )
 
-
-
     def show_parameters(self, product_action):
 
         for widget in self.parameters_frame.winfo_children():
-
             widget.destroy()
-
 
         action = self.action_lookup.get(
             product_action.action_id
         )
 
-
         if not action:
             return
 
-
         for parameter in action.parameters:
-
-
+            print("----------------")
+            print("PARAMETER ID  :", parameter.id)
+            print("PARAMETER NAME:", parameter.name)
             frame = ctk.CTkFrame(
                 self.parameters_frame
             )
@@ -469,7 +464,6 @@ class ProductEditor(ctk.CTkToplevel):
                 pady=5
             )
 
-
             ctk.CTkLabel(
                 frame,
                 text=parameter.name
@@ -477,35 +471,31 @@ class ProductEditor(ctk.CTkToplevel):
                 side="left"
             )
 
-
             entry = ctk.CTkEntry(frame)
 
             entry.pack(
                 side="right"
             )
 
-
             value = product_action.values.get(
-                parameter.name,
+                parameter.id,
                 parameter.default
             )
-
 
             entry.insert(
                 0,
                 str(value)
             )
 
-
             entry.bind(
                 "<FocusOut>",
                 lambda e,
-                name=parameter.name,
-                ent=entry,
-                pa=product_action:
+                       pid=parameter.id,
+                       ent=entry,
+                       pa=product_action:
                 self.update_parameter(
                     pa,
-                    name,
+                    pid,
                     ent.get()
                 )
             )
@@ -518,6 +508,9 @@ class ProductEditor(ctk.CTkToplevel):
         name,
         value
     ):
+        print("UPDATE:")
+        print("KEY  :", name)
+        print("VALUE:", value)
 
         product_action.values[name] = value
 
