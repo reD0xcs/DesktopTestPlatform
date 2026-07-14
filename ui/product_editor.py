@@ -3,19 +3,26 @@ from CTkListbox import CTkListbox
 
 from models.product import Product
 from models.product_action import ProductAction
-from tkinter import messagebox
+from ui.confirm_dialog import ConfirmDialog
+from ui.info_dialog import InfoDialog
 
 
 class ProductEditor(ctk.CTkToplevel):
 
-    def __init__(self, master, action_registry, serializer):
+    def __init__(
+            self,
+            master,
+            action_registry,
+            serializer,
+            product=None
+    ):
 
         super().__init__(master)
 
         self.title("Product Editor")
         self.geometry("1000x650")
 
-        self.product = Product()
+        self.product = product if product else Product()
 
         self.action_registry = action_registry
         self.serializer = serializer
@@ -26,6 +33,12 @@ class ProductEditor(ctk.CTkToplevel):
         self._create_widgets()
 
         self.load_actions()
+
+        self.refresh_product_steps()
+        self.product_name.insert(
+            0,
+            self.product.name
+        )
 
         self.serializer = serializer
 
@@ -513,30 +526,37 @@ class ProductEditor(ctk.CTkToplevel):
         name = self.product_name.get().strip()
 
         if not name:
-            print("Product name missing")
+            InfoDialog(
+                self,
+                title="Save Product",
+                message="Please enter a product name."
+            ).show()
             return
 
         self.product.name = name
 
-        self.serializer.save(
-            self.product
-        )
+        self.serializer.save(self.product)
 
-        print(
-            f"Saved product: {name}"
-        )
+        InfoDialog(
+            self,
+            title="Save Product",
+            message=f'Product "{name}" was saved successfully.'
+        ).show()
 
     def open_load_window(self):
 
-        if self.has_product_data():
+        dialog = ConfirmDialog(
+            self,
+            title="Load Product",
+            message=(
+                "Current product contains unsaved changes.\n\n"
+                "Discard them and load another product?"
+            ),
+            confirm_text="Load"
+        )
 
-            result = messagebox.askyesno(
-                "Load Product",
-                "Current product contains data.\nDiscard changes and load another?"
-            )
-
-            if not result:
-                return
+        if not dialog.show():
+            return
 
         window = ctk.CTkToplevel(self)
 
@@ -612,18 +632,27 @@ class ProductEditor(ctk.CTkToplevel):
 
         if self.has_product_data():
 
-            result = messagebox.askyesno(
-                "New Product",
-                "Current product contains data.\nCreate a new empty product?"
+            dialog = ConfirmDialog(
+                self,
+                title="New Product",
+                message=(
+                    "Current product contains unsaved changes.\n\n"
+                    "Discard them and create a new product?"
+                ),
+                confirm_text="New"
             )
 
-            if not result:
+            if not dialog.show():
                 return
 
         self.reset_product()
 
-        print("New empty product created")
 
+        InfoDialog(
+            self,
+            title="New Product",
+            message="A new empty product has been created successfully."
+        ).show()
     def reset_product(self):
 
         self.product = Product()

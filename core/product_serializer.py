@@ -70,7 +70,7 @@ class ProductSerializer:
 
     def delete(self, name: str):
 
-        filename = self.directory / f"{product.name.replace(' ', '_')}.json"
+        filename = self.directory / f"{name}.json"
 
         if filename.exists():
             filename.unlink()
