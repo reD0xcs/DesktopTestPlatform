@@ -13,7 +13,12 @@ class ActionExecutor:
     # PUBLIC
     # ==================================================
 
-    def execute(self, product_action):
+    def execute(
+            self,
+            product_action,
+            progress_callback=None,
+            stop_callback=None
+    ):
 
         try:
 
@@ -23,7 +28,9 @@ class ActionExecutor:
 
                 return self._execute_system(
                     action_id,
-                    product_action.values
+                    product_action.values,
+                    progress_callback,
+                    stop_callback
                 )
 
             if action_id.startswith("pi."):
@@ -50,7 +57,13 @@ class ActionExecutor:
     # SYSTEM
     # ==================================================
 
-    def _execute_system(self, action_id, values):
+    def _execute_system(
+            self,
+            action_id,
+            values,
+            progress_callback=None,
+            stop_callback=None
+    ):
 
         command = action_id.split(".")[1]
 
@@ -62,9 +75,27 @@ class ActionExecutor:
                 values.get("seconds", 0)
             )
 
-            print("SECONDS:", seconds)
+            steps = max(
+                int(seconds * 20),
+                1
+            )
 
-            sleep(seconds)
+            for i in range(steps):
+
+                if stop_callback and stop_callback():
+                    return ActionResult(
+                        action_id=action_id,
+                        success=False,
+                        message="Stopped"
+                    )
+
+                sleep(seconds / steps)
+
+                if progress_callback:
+                    progress_callback(
+                        (i + 1) / steps,
+                        seconds - ((i + 1) * seconds / steps)
+                    )
 
             return ActionResult(
                 action_id=action_id,
