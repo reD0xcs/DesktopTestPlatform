@@ -6,6 +6,8 @@ from core.product_serializer import ProductSerializer
 
 from ui.product_editor import ProductEditor
 from ui.product_manager import ProductManager
+from ui.device_manager_window import DeviceManagerWindow
+
 
 class MainWindow(ctk.CTk):
 
@@ -19,6 +21,8 @@ class MainWindow(ctk.CTk):
         self.action_registry = ActionRegistry(self.device_manager)
         self.serializer = ProductSerializer()
 
+        self.device_manager_window = None
+
         ctk.CTkButton(
             self,
             text="Product Editor",
@@ -31,6 +35,13 @@ class MainWindow(ctk.CTk):
             text="Product Manager",
             width=200,
             command=self.open_product_manager
+        ).pack(pady=20)
+
+        ctk.CTkButton(
+            self,
+            text="Device Manager",
+            width=200,
+            command=self.open_device_manager
         ).pack(pady=20)
 
     def open_product_editor(self):
@@ -48,3 +59,14 @@ class MainWindow(ctk.CTk):
             self.action_registry,
             self.device_manager
         )
+
+    def open_device_manager(self):
+
+        if self.device_manager_window is None or not self.device_manager_window.winfo_exists():
+            self.device_manager_window = DeviceManagerWindow(
+                self,
+                self.device_manager
+            )
+        else:
+            self.device_manager_window.lift()
+            self.device_manager_window.focus_force()
