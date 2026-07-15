@@ -17,7 +17,8 @@ class ActionExecutor:
             self,
             product_action,
             progress_callback=None,
-            stop_callback=None
+            stop_callback=None,
+            pause_callback=None
     ):
 
         try:
@@ -30,7 +31,8 @@ class ActionExecutor:
                     action_id,
                     product_action.values,
                     progress_callback,
-                    stop_callback
+                    stop_callback,
+                    pause_callback
                 )
 
             if action_id.startswith("pi."):
@@ -62,14 +64,13 @@ class ActionExecutor:
             action_id,
             values,
             progress_callback=None,
-            stop_callback=None
+            stop_callback=None,
+            pause_callback=None
     ):
 
         command = action_id.split(".")[1]
 
         if command == "delay":
-
-            print("VALUES:", values)
 
             seconds = float(
                 values.get("seconds", 0)
@@ -88,6 +89,17 @@ class ActionExecutor:
                         success=False,
                         message="Stopped"
                     )
+
+                if pause_callback:
+                    pause_event = pause_callback()
+                    pause_event.wait()
+
+                    if stop_callback and stop_callback():
+                        return ActionResult(
+                            action_id=action_id,
+                            success=False,
+                            message="Stopped"
+                        )
 
                 sleep(seconds / steps)
 

@@ -14,6 +14,10 @@ class RunWindow(ctk.CTkToplevel):
         self.executor = executor
 
         self.stop_requested = False
+        self.pause_requested = False
+        self.pause_event = threading.Event()
+        self.pause_event.set()
+
         self.start_time = time.time()
 
         self.title(f"Running - {product.name}")
@@ -139,6 +143,20 @@ class RunWindow(ctk.CTkToplevel):
             padx=5
         )
 
+        self.pause_button = ctk.CTkButton(
+            buttons,
+            text="Pause",
+            width=120,
+            fg_color="#F39C12",
+            hover_color="#D68910",
+            command=self.toggle_pause
+        )
+
+        self.pause_button.pack(
+            side="left",
+            padx=5
+        )
+
         self.close_button = ctk.CTkButton(
             buttons,
             text="Close",
@@ -158,33 +176,66 @@ class RunWindow(ctk.CTkToplevel):
 
     def append_log(self, text):
 
-        self.log.configure(
-            state="normal"
-        )
+        def update():
+            self.log.configure(state="normal")
+            self.log.insert("end", text + "\n")
+            self.log.see("end")
+            self.log.configure(state="disabled")
 
-        self.log.insert(
-            "end",
-            text + "\n"
-        )
-
-        self.log.see("end")
-
-        self.log.configure(
-            state="disabled"
-        )
+        self.after(0, update)
 
     def stop_execution(self):
 
         self.stop_requested = True
+        self.pause_event.set()
 
-        self.stop_button.configure(
-            state="disabled",
-            text="Stopping..."
+        self.after(
+            0,
+            lambda: self.stop_button.configure(
+                state="disabled",
+                text="Stopping..."
+            )
         )
 
-        self.append_log(
-            "Stop requested..."
+        self.after(
+            0,
+            lambda: self.pause_button.configure(
+                state="disabled"
+            )
         )
+
+        self.append_log("Stop requested...")
+
+    def toggle_pause(self):
+
+        if self.stop_requested:
+            return
+
+        if self.pause_requested:
+            self.pause_requested = False
+            self.pause_event.set()
+
+            self.after(
+                0,
+                lambda: self.pause_button.configure(
+                    text="Pause"
+                )
+            )
+
+            self.append_log("Resumed.")
+            return
+
+        self.pause_requested = True
+        self.pause_event.clear()
+
+        self.after(
+            0,
+            lambda: self.pause_button.configure(
+                text="Resume"
+            )
+        )
+
+        self.append_log("Paused.")
 
     # ==========================================
     # EXECUTION
@@ -193,102 +244,70 @@ class RunWindow(ctk.CTkToplevel):
     def run_product(self):
 
         total = len(self.product.actions)
+        index = 0
 
         if total == 0:
-            self.append_log(
-                "Nothing to execute."
-            )
+            self.append_log("Nothing to execute.")
 
-            self.close_button.configure(
-                state="normal"
-            )
+            self.enable_close()
+            self.disable_stop()
+            self.disable_pause()
 
             return
 
-        for index, action in enumerate(
-                self.product.actions,
-                start=1
-        ):
+        for index, action in enumerate(self.product.actions, start=1):
 
             if self.stop_requested:
-                self.current_action.configure(
-                    text="Stopping..."
-                )
-
-                self.append_log(
-                    "Execution cancelled by user."
-                )
-
+                self.set_current_action("Stopping...")
+                self.append_log("Execution cancelled by user.")
                 break
 
-            # Reset current step progress
-            self.step_progress.set(0)
+            self.pause_event.wait()
 
-            # Update UI
-            self.step_label.configure(
-                text=f"Step {index} / {total}"
-            )
+            if self.stop_requested:
+                self.set_current_action("Stopping...")
+                self.append_log("Execution cancelled by user.")
+                break
 
-            display = action.action_id.replace(
-                ".",
-                " → "
-            )
+            self.set_step_progress(0)
+
+            self.set_step_label(f"Step {index} / {total}")
+
+            display = action.action_id.replace(".", " → ")
 
             self.set_current_action(display)
 
-            # Execute action
             result = self.executor.execute(
                 action,
                 progress_callback=self.update_step_progress,
-                stop_callback=lambda: self.stop_requested
+                stop_callback=lambda: self.stop_requested,
+                pause_callback=lambda: self.pause_event
             )
 
             if result.success:
-
-                self.append_log(
-                    f"✔ {display}"
-                )
-
+                self.append_log(f"✔ {display}")
             else:
-
-                self.append_log(
-                    f"✖ {display} - {result.message}"
-                )
-
+                self.append_log(f"✖ {display} - {result.message}")
                 break
 
-            # Step finished
-            self.step_progress.set(1)
-
-            self.set_overall_progress(
-                index / total
-            )
+            self.set_step_progress(1)
+            self.set_overall_progress(index / total)
 
         elapsed = time.time() - self.start_time
 
         if self.stop_requested:
-
-            self.current_action.configure(
-                text="Stopped"
-            )
-
+            self.set_current_action("Stopped")
         else:
+            self.set_current_action("Finished")
 
-            self.current_action.configure(
-                text="Finished"
-            )
-
-        self.set_step_label(
-            f"Step {index} / {total}"
-        )
+        self.set_step_label(f"Step {min(index, total)} / {total}")
 
         self.append_log("")
-        self.append_log(
-            f"Finished in {elapsed:.2f} seconds."
-        )
+        self.append_log(f"Finished in {elapsed:.2f} seconds.")
+
 
         self.disable_stop()
-
+        self.disable_pause()
         self.enable_close()
 
     def update_step_progress(self, progress, remaining):
@@ -296,8 +315,11 @@ class RunWindow(ctk.CTkToplevel):
         def update():
             self.step_progress.set(progress)
 
+            text = self.current_action.cget("text")
+            base_text = text.split(" (")[0]
+
             self.current_action.configure(
-                text=f"{self.current_action.cget('text').split(' (')[0]} ({remaining:.1f}s)"
+                text=f"{base_text} ({remaining:.1f}s)"
             )
 
         self.after(0, update)
@@ -327,6 +349,13 @@ class RunWindow(ctk.CTkToplevel):
             lambda: self.overall_progress.set(value)
         )
 
+    def set_step_progress(self, value):
+
+        self.after(
+            0,
+            lambda: self.step_progress.set(value)
+        )
+
     def enable_close(self):
 
         self.after(
@@ -341,6 +370,15 @@ class RunWindow(ctk.CTkToplevel):
         self.after(
             0,
             lambda: self.stop_button.configure(
+                state="disabled"
+            )
+        )
+
+    def disable_pause(self):
+
+        self.after(
+            0,
+            lambda: self.pause_button.configure(
                 state="disabled"
             )
         )
