@@ -12,6 +12,24 @@ class PowerSupplyManager:
     def __init__(self):
         self.power_supplies = {}
         self._load_power_supplies()
+        print("autoconect start")
+        self._auto_connect()
+        print("autoconect end")
+
+    def _auto_connect(self):
+        for ps in self.power_supplies.values():
+            if not ps.is_connected():
+                try:
+                    # verifică dacă sursa există în Device Manager
+                    if ps.id == "owon_spe3051":
+                        print("connecting to com12")
+                        ps.connect("COM12")
+                        print(f"conected : {ps.is_connected()}")
+                    else:
+                        # altă sursă, poate alt COM
+                        pass
+                except Exception as e:
+                    print(f"⚠ Failed to connect {ps.name}: {e}")
 
     def _load_power_supplies(self):
 
@@ -39,7 +57,9 @@ class PowerSupplyManager:
         return [
             {
                 "id": ps.id,
-                "name": ps.name
+                "name": ps.name,
+                "connected": ps.is_connected(),
+                "detail": ""
             }
             for ps in self.power_supplies.values()
         ]
