@@ -7,6 +7,7 @@ reports
 logs
 archive
 .pyc
+autocursor.py
 
 devices/power_supplies/__pycache__/manager.cpython-313.pyc
 devices/power_supplies/__pycache__/owon_spe3051.cpython-313.pyc
