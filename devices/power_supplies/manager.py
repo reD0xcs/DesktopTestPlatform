@@ -1,6 +1,8 @@
 import importlib
 import inspect
 import pkgutil
+import serial.tools.list_ports
+
 
 import devices.power_supplies
 from devices.power_supplies.base import PowerSupplyBase
@@ -15,6 +17,7 @@ class PowerSupplyManager:
         print("autoconect start")
         self._auto_connect()
         print("autoconect end")
+        self.last_ports = self.get_current_ports()
 
     def _auto_connect(self):
         for ps in self.power_supplies.values():
@@ -30,6 +33,20 @@ class PowerSupplyManager:
                         pass
                 except Exception as e:
                     print(f"⚠ Failed to connect {ps.name}: {e}")
+
+    def get_current_ports(self):
+        return {port.device for port in serial.tools.list_ports.comports()}
+    
+    def check_for_changes(self):
+        current_ports = self.get_current_ports()
+
+        # dacă s-a schimbat ceva (device nou sau scos)
+        if current_ports != self.last_ports:
+            print("🔄 Port change detected — reloading power supplies...")
+            self.last_ports = current_ports
+            self._load_power_supplies()
+            self._auto_connect()
+
 
     def _load_power_supplies(self):
 
@@ -53,8 +70,9 @@ class PowerSupplyManager:
                     print(f"✓ Loaded Power Supply: {instance.name}")
 
     def get_available(self):
-
+        self.check_for_changes()
         return list(self.power_supplies.values())
+
 
     def get_actions(self) -> list[Action]:
 
