@@ -170,6 +170,7 @@ class DeviceManagerWindow(ctk.CTkToplevel):
 
         self.power_supply_rows.clear()
 
+        # acum primim instanțe de PowerSupplyBase
         power_supplies = self.device_manager.power_supplies.get_available()
 
         if hasattr(self, "psu_placeholder") and self.psu_placeholder.winfo_exists():
@@ -183,24 +184,10 @@ class DeviceManagerWindow(ctk.CTkToplevel):
             self.psu_placeholder.pack(anchor="w", padx=10, pady=10)
             return
 
-        for item in power_supplies:
-
-            if isinstance(item, dict):
-                name = item.get("name", item.get("id", "Power Supply"))
-                connected = item.get("connected", False)
-                detail = item.get("detail", "")
-            else:
-                name = getattr(item, "name", str(item))
-                detail = getattr(item, "model", "")
-                connected_attr = getattr(item, "is_connected", None)
-
-                if callable(connected_attr):
-                    try:
-                        connected = connected_attr()
-                    except Exception:
-                        connected = False
-                else:
-                    connected = bool(connected_attr)
+        for ps in power_supplies:
+            name = getattr(ps, "name", "Power Supply")
+            detail = getattr(ps, "model", "")
+            connected = ps.is_connected()
 
             row = self._create_row(
                 self.container,
@@ -239,24 +226,11 @@ class DeviceManagerWindow(ctk.CTkToplevel):
             self._load_power_supplies()
             power_supplies = self.device_manager.power_supplies.get_available()
 
-        for row, item in zip(self.power_supply_rows, power_supplies):
+        for row, ps in zip(self.power_supply_rows, power_supplies):
 
-            if isinstance(item, dict):
-                name = item.get("name", item.get("id", "Power Supply"))
-                connected = item.get("connected", False)
-                detail = item.get("detail", "")
-            else:
-                name = getattr(item, "name", str(item))
-                detail = getattr(item, "model", "")
-                connected_attr = getattr(item, "is_connected", None)
-
-                if callable(connected_attr):
-                    try:
-                        connected = connected_attr()
-                    except Exception:
-                        connected = False
-                else:
-                    connected = bool(connected_attr)
+            name = getattr(ps, "name", "Power Supply")
+            detail = getattr(ps, "model", "")
+            connected = ps.is_connected()
 
             self._set_row(
                 row,

@@ -54,15 +54,7 @@ class PowerSupplyManager:
 
     def get_available(self):
 
-        return [
-            {
-                "id": ps.id,
-                "name": ps.name,
-                "connected": ps.is_connected(),
-                "detail": ""
-            }
-            for ps in self.power_supplies.values()
-        ]
+        return list(self.power_supplies.values())
 
     def get_actions(self) -> list[Action]:
 

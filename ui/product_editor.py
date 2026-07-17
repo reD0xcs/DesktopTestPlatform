@@ -646,6 +646,7 @@ class ProductEditor(ctk.CTkToplevel):
             title="New Product",
             message="A new empty product has been created successfully."
         ).show()
+        
     def reset_product(self):
 
         self.product = Product()

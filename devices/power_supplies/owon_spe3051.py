@@ -34,19 +34,27 @@ class OwonSPE3051(PowerSupplyBase):
         self.connected = False
 
     def is_connected(self):
+        # dacă nu avem obiectul psu, clar nu e conectat
         if self.psu is None:
+            self.connected = False
             return False
-       
+
         try:
+            # dacă portul nu mai e deschis, marcăm ca deconectat
             if not self.psu.ser.is_open:
+                self.connected = False
                 return False
-           
+
+            # verificăm dacă dispozitivul răspunde efectiv
             self.psu.ser.write(b"*IDN?\n")
             resp = self.psu.ser.read(50).strip()
-            if resp:
-                return True
-            return False
+
+            self.connected = bool(resp)
+            return self.connected
+
         except Exception:
+            # orice eroare la comunicare => considerăm deconectat
+            self.connected = False
             return False
 
     def set_voltage(self, voltage: float):
