@@ -1,12 +1,10 @@
 from time import sleep
-
 from models.action_result import ActionResult
 
 
 class ActionExecutor:
 
     def __init__(self, device_manager):
-
         self.device_manager = device_manager
 
     # ==================================================
@@ -14,19 +12,17 @@ class ActionExecutor:
     # ==================================================
 
     def execute(
-            self,
-            product_action,
-            progress_callback=None,
-            stop_callback=None,
-            pause_callback=None
+        self,
+        product_action,
+        progress_callback=None,
+        stop_callback=None,
+        pause_callback=None
     ):
-
         try:
-
             action_id = product_action.action_id
 
+            # SYSTEM ACTIONS
             if action_id.startswith("system."):
-
                 return self._execute_system(
                     action_id,
                     product_action.values,
@@ -35,20 +31,20 @@ class ActionExecutor:
                     pause_callback
                 )
 
+            # RASPBERRY PI ACTIONS
             if action_id.startswith("pi."):
-
                 return self._execute_pi(
                     action_id,
                     product_action.values
                 )
 
+            # POWER SUPPLY ACTIONS
             return self._execute_power_supply(
                 action_id,
                 product_action.values
             )
 
         except Exception as e:
-
             return ActionResult(
                 action_id=product_action.action_id,
                 success=False,
@@ -60,29 +56,22 @@ class ActionExecutor:
     # ==================================================
 
     def _execute_system(
-            self,
-            action_id,
-            values,
-            progress_callback=None,
-            stop_callback=None,
-            pause_callback=None
+        self,
+        action_id,
+        values,
+        progress_callback=None,
+        stop_callback=None,
+        pause_callback=None
     ):
-
         command = action_id.split(".")[1]
 
         if command == "delay":
-
-            seconds = float(
-                values.get("seconds", 0)
-            )
-
-            steps = max(
-                int(seconds * 20),
-                1
-            )
+            seconds = float(values.get("seconds", 0))
+            steps = max(int(seconds * 20), 1)
 
             for i in range(steps):
 
+                # STOP
                 if stop_callback and stop_callback():
                     return ActionResult(
                         action_id=action_id,
@@ -90,6 +79,7 @@ class ActionExecutor:
                         message="Stopped"
                     )
 
+                # PAUSE
                 if pause_callback:
                     pause_event = pause_callback()
                     pause_event.wait()
@@ -116,11 +106,7 @@ class ActionExecutor:
             )
 
         elif command == "message":
-
-            print(
-                values.get("message", "")
-            )
-
+            print(values.get("message", ""))
             return ActionResult(
                 action_id=action_id,
                 success=True,
@@ -134,58 +120,63 @@ class ActionExecutor:
         )
 
     # ==================================================
-    # POWER SUPPLY
+    # POWER SUPPLY (ROBUST)
     # ==================================================
 
     def _execute_power_supply(self, action_id, values):
 
         device_id, command = action_id.split(".", 1)
 
-        psu = self.device_manager.power_supplies.get(
-            device_id
-        )
+        # obținem instanța reală
+        psu = self.device_manager.power_supplies.get(device_id)
 
         if psu is None:
-
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message="Power supply not found"
+                message=f"Power supply '{device_id}' not found"
             )
 
-        if command == "set_voltage":
-
-            psu.set_voltage(
-                values.get("voltage", 0)
-            )
-
-        elif command == "set_current":
-
-            psu.set_current(
-                values.get("current", 0)
-            )
-
-        elif command == "output_on":
-
-            psu.output_on()
-
-        elif command == "output_off":
-
-            psu.output_off()
-
-        else:
-
+        # verificare conectare reală
+        if not psu.is_connected():
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message="Unknown PSU action"
+                message=f"Power supply '{psu.name}' is not connected"
             )
 
-        return ActionResult(
-            action_id=action_id,
-            success=True,
-            message="OK"
-        )
+        try:
+            if command == "set_voltage":
+                psu.set_voltage(values.get("voltage", 0))
+
+            elif command == "set_current":
+                psu.set_current(values.get("current", 0))
+
+            elif command == "output_on":
+                psu.output_on()
+
+            elif command == "output_off":
+                psu.output_off()
+
+            else:
+                return ActionResult(
+                    action_id=action_id,
+                    success=False,
+                    message="Unknown PSU action"
+                )
+
+            return ActionResult(
+                action_id=action_id,
+                success=True,
+                message="OK"
+            )
+
+        except Exception as e:
+            return ActionResult(
+                action_id=action_id,
+                success=False,
+                message=str(e)
+            )
 
     # ==================================================
     # RASPBERRY PI
@@ -193,17 +184,18 @@ class ActionExecutor:
 
     def _execute_pi(self, action_id, values):
 
-        test_id = action_id.replace(
-            "pi.",
-            ""
-        )
+        test_id = action_id.replace("pi.", "")
 
-        self.device_manager.pi.run_test(
-            test_id
-        )
-
-        return ActionResult(
-            action_id=action_id,
-            success=True,
-            message="OK"
-        )
+        try:
+            self.device_manager.pi.run_test(test_id)
+            return ActionResult(
+                action_id=action_id,
+                success=True,
+                message="OK"
+            )
+        except Exception as e:
+            return ActionResult(
+                action_id=action_id,
+                success=False,
+                message=str(e)
+            )

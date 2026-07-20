@@ -3,140 +3,103 @@ import inspect
 import pkgutil
 import serial.tools.list_ports
 
-
 import devices.power_supplies
 from devices.power_supplies.base import PowerSupplyBase
-from models.action import Action
-from models.parameter import Parameter
+
 
 class PowerSupplyManager:
 
     def __init__(self):
         self.power_supplies = {}
         self._load_power_supplies()
-        print("autoconect start")
-        self._auto_connect()
-        print("autoconect end")
+
+        # salvăm porturile inițiale
         self.last_ports = self.get_current_ports()
+
+        # încercăm conectarea automată
+        self._auto_connect()
+
+    def get_actions(self):
+        actions = []
+
+        for ps in self.power_supplies.values():
+
+            # fiecare PSU expune propriile acțiuni
+            if hasattr(ps, "get_actions"):
+                actions.extend(ps.get_actions())
+
+        return actions
+
+
+    # --------------------------------------------------
+    # PORT DETECTION
+    # --------------------------------------------------
+
+    def get_current_ports(self):
+        return {port.device for port in serial.tools.list_ports.comports()}
+
+    def check_for_changes(self):
+        current = self.get_current_ports()
+
+        if current != self.last_ports:
+            print("🔄 Port change detected — reloading power supplies...")
+            self.last_ports = current
+            self._load_power_supplies()
+            self._auto_connect()
+
+    # --------------------------------------------------
+    # AUTO CONNECT
+    # --------------------------------------------------
 
     def _auto_connect(self):
         for ps in self.power_supplies.values():
             if not ps.is_connected():
                 try:
-                    # verifică dacă sursa există în Device Manager
                     if ps.id == "owon_spe3051":
-                        print("connecting to com12")
                         ps.connect("COM12")
-                        print(f"conected : {ps.is_connected()}")
-                    else:
-                        # altă sursă, poate alt COM
-                        pass
                 except Exception as e:
                     print(f"⚠ Failed to connect {ps.name}: {e}")
 
-    def get_current_ports(self):
-        return {port.device for port in serial.tools.list_ports.comports()}
-    
-    def check_for_changes(self):
-        current_ports = self.get_current_ports()
-
-        # dacă s-a schimbat ceva (device nou sau scos)
-        if current_ports != self.last_ports:
-            print("🔄 Port change detected — reloading power supplies...")
-            self.last_ports = current_ports
-            self._load_power_supplies()
-            self._auto_connect()
-
+    # --------------------------------------------------
+    # LOAD DRIVERS
+    # --------------------------------------------------
 
     def _load_power_supplies(self):
 
-        for _, module_name, _ in pkgutil.iter_modules(devices.power_supplies.__path__):
+        self.power_supplies.clear()
 
+        for _, module_name, _ in pkgutil.iter_modules(devices.power_supplies.__path__):
             if module_name == "base":
                 continue
 
-            module = importlib.import_module(
-                f"devices.power_supplies.{module_name}"
-            )
+            module = importlib.import_module(f"devices.power_supplies.{module_name}")
 
             for _, obj in inspect.getmembers(module, inspect.isclass):
 
-                if issubclass(obj, PowerSupplyBase) and obj is not PowerSupplyBase:
+                # ignorăm clasele abstracte
+                if inspect.isabstract(obj):
+                    continue
 
+                # ignorăm clasa de bază
+                if obj is PowerSupplyBase:
+                    continue
+
+                # încărcăm doar driverele reale
+                if issubclass(obj, PowerSupplyBase):
                     instance = obj()
-
                     self.power_supplies[instance.id] = instance
-
                     print(f"✓ Loaded Power Supply: {instance.name}")
+
+
+    # --------------------------------------------------
+    # PUBLIC API
+    # --------------------------------------------------
 
     def get_available(self):
         self.check_for_changes()
         return list(self.power_supplies.values())
 
-
-    def get_actions(self) -> list[Action]:
-
-        actions = []
-
-        for ps in self.power_supplies.values():
-            actions.extend([
-
-                Action(
-                    id=f"{ps.id}.set_voltage",
-                    name="Set Voltage",
-                    device=ps.id,
-                    category="Power Supply",
-                    description=f"Set voltage on {ps.name}",
-                    parameters=[
-                        Parameter(
-                            id="voltage",
-                            name="Voltage",
-                            type="float",
-                            default=0.0,
-                            description="Voltage (V)",
-                            unit="V"
-                        )
-                    ]
-                ),
-
-                Action(
-                    id=f"{ps.id}.set_current",
-                    name="Set Current",
-                    device=ps.id,
-                    category="Power Supply",
-                    description=f"Set current on {ps.name}",
-                    parameters=[
-                        Parameter(
-                            id="current",
-                            name="Current",
-                            type="float",
-                            default=0.0,
-                            description="Current (A)",
-                            unit="A"
-                        )
-                    ]
-                ),
-
-                Action(
-                    id=f"{ps.id}.output_on",
-                    name="Output ON",
-                    device=ps.id,
-                    category="Power Supply",
-                    description=f"Enable output on {ps.name}"
-                ),
-
-                Action(
-                    id=f"{ps.id}.output_off",
-                    name="Output OFF",
-                    device=ps.id,
-                    category="Power Supply",
-                    description=f"Disable output on {ps.name}"
-                )
-
-            ])
-
-        return actions
-
     def get(self, id):
-
         return self.power_supplies.get(id)
+    
+    

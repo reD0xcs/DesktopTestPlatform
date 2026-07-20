@@ -170,22 +170,18 @@ class DeviceManagerWindow(ctk.CTkToplevel):
 
         self.power_supply_rows.clear()
 
-        # acum primim instanțe de PowerSupplyBase
         power_supplies = self.device_manager.power_supplies.get_available()
 
         if hasattr(self, "psu_placeholder") and self.psu_placeholder.winfo_exists():
             self.psu_placeholder.destroy()
 
         if not power_supplies:
-            self.psu_placeholder = ctk.CTkLabel(
-                self.container,
-                text="No power supplies detected."
-            )
+            self.psu_placeholder = ctk.CTkLabel(self.container, text="No power supplies detected.")
             self.psu_placeholder.pack(anchor="w", padx=10, pady=10)
             return
 
         for ps in power_supplies:
-            name = getattr(ps, "name", "Power Supply")
+            name = ps.name
             detail = getattr(ps, "model", "")
             connected = ps.is_connected()
 
@@ -197,28 +193,12 @@ class DeviceManagerWindow(ctk.CTkToplevel):
             )
             self.power_supply_rows.append(row)
 
+
     # ==========================================
     # REFRESH
     # ==========================================
 
     def refresh_status(self):
-
-        try:
-            pi_connected = self.device_manager.is_pi_connected()
-        except Exception:
-            pi_connected = False
-
-        try:
-            pi_host = getattr(self.device_manager.pi, "host", "unknown")
-        except Exception:
-            pi_host = "unknown"
-
-        self._set_row(
-            self.pi_row,
-            name="Raspberry Pi",
-            status="Connected" if pi_connected else "Offline",
-            detail=f"Host: {pi_host}"
-        )
 
         power_supplies = self.device_manager.power_supplies.get_available()
 
@@ -227,8 +207,7 @@ class DeviceManagerWindow(ctk.CTkToplevel):
             power_supplies = self.device_manager.power_supplies.get_available()
 
         for row, ps in zip(self.power_supply_rows, power_supplies):
-
-            name = getattr(ps, "name", "Power Supply")
+            name = ps.name
             detail = getattr(ps, "model", "")
             connected = ps.is_connected()
 
@@ -238,6 +217,7 @@ class DeviceManagerWindow(ctk.CTkToplevel):
                 status="Connected" if connected else "Offline",
                 detail=detail
             )
+
 
     def _refresh_loop(self):
 
