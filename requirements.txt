@@ -1,4 +1,6 @@
-customtkinter
-owon-psu==0.0.5
-pyserial
-requests
+pyserial==3.5
+serial==0.0.97
+requests==2.34.2
+owon_psu==0.0.5
+customtkinter==6.0.0
+ctklistbox==1.5
