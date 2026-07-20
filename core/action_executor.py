@@ -1,4 +1,4 @@
-from time import sleep
+from time import sleep, time
 from models.action_result import ActionResult
 
 
@@ -18,12 +18,13 @@ class ActionExecutor:
         stop_callback=None,
         pause_callback=None
     ):
-        try:
-            action_id = product_action.action_id
+        start = time()
+        action_id = product_action.action_id
 
+        try:
             # SYSTEM ACTIONS
             if action_id.startswith("system."):
-                return self._execute_system(
+                result = self._execute_system(
                     action_id,
                     product_action.values,
                     progress_callback,
@@ -32,23 +33,33 @@ class ActionExecutor:
                 )
 
             # RASPBERRY PI ACTIONS
-            if action_id.startswith("pi."):
-                return self._execute_pi(
+            elif action_id.startswith("pi."):
+                result = self._execute_pi(
                     action_id,
                     product_action.values
                 )
 
             # POWER SUPPLY ACTIONS
-            return self._execute_power_supply(
-                action_id,
-                product_action.values
-            )
+            else:
+                result = self._execute_power_supply(
+                    action_id,
+                    product_action.values
+                )
+
+            # complete result with duration + timestamp
+            result.duration = time() - start
+            result.timestamp = start
+
+            return result
 
         except Exception as e:
             return ActionResult(
-                action_id=product_action.action_id,
+                action_id=action_id,
                 success=False,
-                message=str(e)
+                message=str(e),
+                outputs={},
+                duration=time() - start,
+                timestamp=start
             )
 
     # ==================================================
@@ -65,6 +76,9 @@ class ActionExecutor:
     ):
         command = action_id.split(".")[1]
 
+        # ----------------------------------------------
+        # DELAY
+        # ----------------------------------------------
         if command == "delay":
             seconds = float(values.get("seconds", 0))
             steps = max(int(seconds * 20), 1)
@@ -76,7 +90,8 @@ class ActionExecutor:
                     return ActionResult(
                         action_id=action_id,
                         success=False,
-                        message="Stopped"
+                        message="Stopped",
+                        outputs={}
                     )
 
                 # PAUSE
@@ -88,7 +103,8 @@ class ActionExecutor:
                         return ActionResult(
                             action_id=action_id,
                             success=False,
-                            message="Stopped"
+                            message="Stopped",
+                            outputs={}
                         )
 
                 sleep(seconds / steps)
@@ -102,21 +118,28 @@ class ActionExecutor:
             return ActionResult(
                 action_id=action_id,
                 success=True,
-                message=f"Delayed {seconds}s"
+                message=f"Delayed {seconds}s",
+                outputs={"delay": seconds}
             )
 
+        # ----------------------------------------------
+        # MESSAGE
+        # ----------------------------------------------
         elif command == "message":
-            print(values.get("message", ""))
+            msg = values.get("message", "")
+            print(msg)
             return ActionResult(
                 action_id=action_id,
                 success=True,
-                message="Message displayed"
+                message="Message displayed",
+                outputs={"message": msg}
             )
 
         return ActionResult(
             action_id=action_id,
             success=False,
-            message="Unknown system action"
+            message="Unknown system action",
+            outputs={}
         )
 
     # ==================================================
@@ -126,26 +149,28 @@ class ActionExecutor:
     def _execute_power_supply(self, action_id, values):
 
         device_id, command = action_id.split(".", 1)
-
-        # obținem instanța reală
         psu = self.device_manager.power_supplies.get(device_id)
 
         if psu is None:
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message=f"Power supply '{device_id}' not found"
+                message=f"Power supply '{device_id}' not found",
+                outputs={}
             )
 
-        # verificare conectare reală
         if not psu.is_connected():
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message=f"Power supply '{psu.name}' is not connected"
+                message=f"Power supply '{psu.name}' is not connected",
+                outputs={}
             )
 
         try:
+            # ----------------------------------------------
+            # EXECUTE COMMAND
+            # ----------------------------------------------
             if command == "set_voltage":
                 psu.set_voltage(values.get("voltage", 0))
 
@@ -162,20 +187,33 @@ class ActionExecutor:
                 return ActionResult(
                     action_id=action_id,
                     success=False,
-                    message="Unknown PSU action"
+                    message="Unknown PSU action",
+                    outputs={}
                 )
+
+            # ----------------------------------------------
+            # READ MEASUREMENTS
+            # ----------------------------------------------
+            voltage = psu.get_voltage()
+            current = psu.get_current()
 
             return ActionResult(
                 action_id=action_id,
                 success=True,
-                message="OK"
+                message="OK",
+                outputs={
+                    "voltage": voltage,
+                    "current": current,
+                    "time": time()
+                }
             )
 
         except Exception as e:
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message=str(e)
+                message=str(e),
+                outputs={}
             )
 
     # ==================================================
@@ -188,14 +226,18 @@ class ActionExecutor:
 
         try:
             self.device_manager.pi.run_test(test_id)
+
             return ActionResult(
                 action_id=action_id,
                 success=True,
-                message="OK"
+                message="OK",
+                outputs={"pi_test": test_id}
             )
+
         except Exception as e:
             return ActionResult(
                 action_id=action_id,
                 success=False,
-                message=str(e)
+                message=str(e),
+                outputs={}
             )

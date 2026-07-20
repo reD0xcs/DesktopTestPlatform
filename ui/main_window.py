@@ -3,6 +3,8 @@ import customtkinter as ctk
 from core.device_manager import DeviceManager
 from core.action_registry import ActionRegistry
 from core.product_serializer import ProductSerializer
+from core.workflow_runner import WorkflowRunner
+
 
 from ui.product_editor import ProductEditor
 from ui.product_manager import ProductManager
@@ -20,6 +22,8 @@ class MainWindow(ctk.CTk):
         self.device_manager = DeviceManager()
         self.action_registry = ActionRegistry(self.device_manager)
         self.serializer = ProductSerializer()
+        self.runner = WorkflowRunner(self.device_manager)
+
 
         self.device_manager_window = None
 
@@ -57,8 +61,10 @@ class MainWindow(ctk.CTk):
             self,
             self.serializer,
             self.action_registry,
-            self.device_manager
+            self.device_manager,
+            self.runner
         )
+
 
     def open_device_manager(self):
 

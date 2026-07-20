@@ -14,7 +14,8 @@ class ProductManager(ctk.CTkToplevel):
             master,
             serializer,
             action_registry,
-            device_manager
+            device_manager,
+            runner
     ):
 
         super().__init__(master)
@@ -24,10 +25,8 @@ class ProductManager(ctk.CTkToplevel):
 
         self.serializer = serializer
         self.action_registry = action_registry
-
-        self.executor = ActionExecutor(
-            device_manager
-        )
+        self.runner = runner
+    
 
         self._create_widgets()
 
@@ -156,7 +155,7 @@ class ProductManager(ctk.CTkToplevel):
         RunWindow(
             self,
             product,
-            self.executor
+            self.runner
         )
 
     def delete_product(self):
