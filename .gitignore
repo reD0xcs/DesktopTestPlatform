@@ -10,7 +10,7 @@ archive
 autocursor.py
 /__pycache__
 /reports
-
+test.py
 devices/power_supplies/__pycache__/manager.cpython-313.pyc
 devices/power_supplies/__pycache__/owon_spe3051.cpython-313.pyc
 devices/raspberry_pi/__pycache__/pi_client.cpython-313.pyc
