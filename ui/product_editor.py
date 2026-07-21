@@ -3,6 +3,7 @@ from CTkListbox import CTkListbox
 
 from models.product import Product
 from models.product_action import ProductAction
+from ui.child_editor import ChildEditor
 from ui.confirm_dialog import ConfirmDialog
 from ui.info_dialog import InfoDialog
 
@@ -20,7 +21,7 @@ class ProductEditor(ctk.CTkToplevel):
         super().__init__(master)
 
         self.title("Product Editor")
-        self.geometry("1000x650")
+        self.geometry("1000x700")
 
         self.product = product if product else Product()
 
@@ -439,65 +440,169 @@ class ProductEditor(ctk.CTkToplevel):
             product_action
         )
 
+    def edit_children(self, product_action):
+        win = ChildEditor(self, self.action_registry, product_action, is_else=False)
+
+    def edit_else_children(self, product_action):
+        win = ChildEditor(self, self.action_registry, product_action, is_else=True)
+
+    def refresh_parameters(self, product_action):
+        for widget in self.parameters_frame.winfo_children():
+            widget.destroy()
+        self.show_parameters(product_action)
+
+
     def show_parameters(self, product_action):
 
+        # Clear old UI
         for widget in self.parameters_frame.winfo_children():
             widget.destroy()
 
-        action = self.action_lookup.get(
-            product_action.action_id
-        )
-
+        action = self.action_lookup.get(product_action.action_id)
         if not action:
             return
 
+        # ============================================================
+        # CONTROL-FLOW BUTTONS
+        # ============================================================
+
+        # IF → children + else_children
+        if action.id == "control.if":
+            ctk.CTkButton(
+                self.parameters_frame,
+                text="Edit Children",
+                command=lambda pa=product_action: self.edit_children(pa)
+            ).pack(pady=5)
+
+            ctk.CTkButton(
+                self.parameters_frame,
+                text="Edit ELSE Children",
+                command=lambda pa=product_action: self.edit_else_children(pa)
+            ).pack(pady=5)
+
+        # LOOP → children
+        elif action.id == "control.loop":
+            ctk.CTkButton(
+                self.parameters_frame,
+                text="Edit Children",
+                command=lambda pa=product_action: self.edit_children(pa)
+            ).pack(pady=5)
+
+        # ASSERT → fără children
+        elif action.id == "control.assert":
+            pass
+
+        # ============================================================
+        # SPECIAL UI FOR IF / ASSERT
+        # ============================================================
+
+        if action.id in ("control.if", "control.assert"):
+
+            # -------------------------
+            # LEFT OPERAND (dropdown)
+            # -------------------------
+            frame_left = ctk.CTkFrame(self.parameters_frame)
+            frame_left.pack(fill="x", pady=5)
+
+            ctk.CTkLabel(frame_left, text="Left Operand").pack(side="left")
+
+            left_options = ["voltage", "current", "numeric"]
+            left_value = product_action.values.get("left", "voltage")
+
+            def on_left_change(val):
+                self.update_parameter(product_action, "left", val)
+                self.refresh_parameters(product_action)
+
+
+            left_menu = ctk.CTkOptionMenu(
+                frame_left,
+                values=left_options,
+                command=on_left_change
+            )
+            left_menu.pack(side="right")
+            left_menu.set(left_value)
+
+            # -------------------------
+            # If left operand = numeric → show numeric field
+            # -------------------------
+            if left_value == "numeric":
+                frame_numeric = ctk.CTkFrame(self.parameters_frame)
+                frame_numeric.pack(fill="x", pady=5)
+
+                ctk.CTkLabel(frame_numeric, text="Numeric Value").pack(side="left")
+
+                entry_numeric = ctk.CTkEntry(frame_numeric)
+                entry_numeric.pack(side="right")
+
+                numeric_val = product_action.values.get("numeric_value", "0")
+                entry_numeric.insert(0, str(numeric_val))
+
+                entry_numeric.bind(
+                    "<FocusOut>",
+                    lambda e: self.update_parameter(product_action, "numeric_value", entry_numeric.get())
+                )
+
+            # -------------------------
+            # OPERATOR (dropdown)
+            # -------------------------
+            frame_op = ctk.CTkFrame(self.parameters_frame)
+            frame_op.pack(fill="x", pady=5)
+
+            ctk.CTkLabel(frame_op, text="Operator").pack(side="left")
+
+            op_options = [">", "<", "==", "!=", ">=", "<="]
+            op_value = product_action.values.get("op", ">")
+
+            op_menu = ctk.CTkOptionMenu(
+                frame_op,
+                values=op_options,
+                command=lambda val: self.update_parameter(product_action, "op", val)
+            )
+            op_menu.pack(side="right")
+            op_menu.set(op_value)
+
+            # -------------------------
+            # RIGHT OPERAND (numeric)
+            # -------------------------
+            frame_right = ctk.CTkFrame(self.parameters_frame)
+            frame_right.pack(fill="x", pady=5)
+
+            ctk.CTkLabel(frame_right, text="Right Operand").pack(side="left")
+
+            entry_right = ctk.CTkEntry(frame_right)
+            entry_right.pack(side="right")
+
+            right_value = product_action.values.get("right", "0")
+            entry_right.insert(0, str(right_value))
+
+            entry_right.bind(
+                "<FocusOut>",
+                lambda e: self.update_parameter(product_action, "right", entry_right.get())
+            )
+
+            # IMPORTANT: stop here → do NOT render default parameters
+            return
+
+        # ============================================================
+        # DEFAULT PARAMETER UI (for non-control actions)
+        # ============================================================
+
         for parameter in action.parameters:
-            print("----------------")
-            print("PARAMETER ID  :", parameter.id)
-            print("PARAMETER NAME:", parameter.name)
-            frame = ctk.CTkFrame(
-                self.parameters_frame
-            )
+            frame = ctk.CTkFrame(self.parameters_frame)
+            frame.pack(fill="x", pady=5)
 
-            frame.pack(
-                fill="x",
-                pady=5
-            )
-
-            ctk.CTkLabel(
-                frame,
-                text=parameter.name
-            ).pack(
-                side="left"
-            )
+            ctk.CTkLabel(frame, text=parameter.name).pack(side="left")
 
             entry = ctk.CTkEntry(frame)
+            entry.pack(side="right")
 
-            entry.pack(
-                side="right"
-            )
-
-            value = product_action.values.get(
-                parameter.id,
-                parameter.default
-            )
-
-            entry.insert(
-                0,
-                str(value)
-            )
+            value = product_action.values.get(parameter.id, parameter.default)
+            entry.insert(0, str(value))
 
             entry.bind(
                 "<FocusOut>",
-                lambda e,
-                       pid=parameter.id,
-                       ent=entry,
-                       pa=product_action:
-                self.update_parameter(
-                    pa,
-                    pid,
-                    ent.get()
-                )
+                lambda e, pid=parameter.id, ent=entry, pa=product_action:
+                self.update_parameter(pa, pid, ent.get())
             )
 
 

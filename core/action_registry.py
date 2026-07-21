@@ -1,4 +1,5 @@
 from actions.system import get_actions as get_system_actions
+from actions.control import get_actions as get_control_actions
 
 
 class ActionRegistry:
@@ -13,6 +14,12 @@ class ActionRegistry:
     def load_actions(self):
 
         actions = []
+
+        # Control-flow actions (IF, LOOP, ASSERT)
+        control = get_control_actions()
+        print("CONTROL:", [a.name for a in control])
+        actions.extend(control)
+
 
         # System actions
         system = get_system_actions()

@@ -11,6 +11,9 @@ class ProductSerializer:
         self.directory = Path(directory)
         self.directory.mkdir(exist_ok=True)
 
+    # ============================================================
+    # SAVE PRODUCT
+    # ============================================================
     def save(self, product: Product):
 
         data = {
@@ -18,26 +21,20 @@ class ProductSerializer:
             "name": product.name,
             "description": product.description,
             "version": product.version,
-            "actions": [
-                {
-                    "id": action.id,
-                    "action_id": action.action_id,
-                    "values": action.values,
-                    "enabled": action.enabled
-                }
-                for action in product.actions
-            ]
+            "actions": [action.to_dict() for action in product.actions]
         }
 
         filename = self.directory / f"{product.name}.json"
 
         with open(filename, "w", encoding="utf-8") as f:
             print("========== SAVE ==========")
-
             for action in product.actions:
                 print(action.action_id, action.values)
             json.dump(data, f, indent=4)
 
+    # ============================================================
+    # LOAD PRODUCT
+    # ============================================================
     def load(self, name: str) -> Product:
 
         filename = self.directory / f"{name}.json"
@@ -48,32 +45,30 @@ class ProductSerializer:
         product = Product(
             id=data["id"],
             name=data["name"],
-            description=data["description"],
-            version=data["version"]
+            description=data.get("description", ""),
+            version=data.get("version", "1.0")
         )
 
-        for item in data["actions"]:
-
-            product.actions.append(
-                ProductAction(
-                    id=item["id"],
-                    action_id=item["action_id"],
-                    values=item["values"],
-                    enabled=item["enabled"]
-                )
-
-            )
-            print("LOAD:", item["values"])
+        # Load actions recursively
+        product.actions = [
+            ProductAction.from_dict(item)
+            for item in data.get("actions", [])
+        ]
 
         return product
 
+    # ============================================================
+    # LIST PRODUCTS
+    # ============================================================
     def list_products(self) -> list[str]:
-
         return sorted(
             file.stem
             for file in self.directory.glob("*.json")
         )
 
+    # ============================================================
+    # DELETE PRODUCT
+    # ============================================================
     def delete(self, name: str):
 
         filename = self.directory / f"{name}.json"
