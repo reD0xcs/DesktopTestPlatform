@@ -148,10 +148,20 @@ class ActionExecutor:
 
     def _execute_power_supply(self, action_id, values):
 
+        # --------------------------------------------------
+        # PARSE ACTION
+        # --------------------------------------------------
         device_id, command = action_id.split(".", 1)
         psu = self.device_manager.power_supplies.get(device_id)
 
+        print(f"[DEBUG] Executing PSU action: {action_id}")
+        print(f"[DEBUG] PSU object: {psu}")
+
+        # --------------------------------------------------
+        # PSU NOT FOUND
+        # --------------------------------------------------
         if psu is None:
+            print(f"[DEBUG] PSU '{device_id}' not found in manager")
             return ActionResult(
                 action_id=action_id,
                 success=False,
@@ -159,7 +169,13 @@ class ActionExecutor:
                 outputs={}
             )
 
-        if not psu.is_connected():
+        # --------------------------------------------------
+        # CHECK CONNECTION
+        # --------------------------------------------------
+        connected = psu.is_connected()
+        print(f"[DEBUG] PSU connected state before action: {connected}")
+
+        if not connected:
             return ActionResult(
                 action_id=action_id,
                 success=False,
@@ -167,35 +183,47 @@ class ActionExecutor:
                 outputs={}
             )
 
+        # --------------------------------------------------
+        # EXECUTE COMMAND
+        # --------------------------------------------------
         try:
-            # ----------------------------------------------
-            # EXECUTE COMMAND
-            # ----------------------------------------------
+            print(f"[DEBUG] Executing command '{command}' on PSU '{device_id}'")
+
             if command == "set_voltage":
-                psu.set_voltage(values.get("voltage", 0))
+                voltage = values.get("voltage", 0)
+                print(f"[DEBUG] set_voltage({voltage})")
+                psu.set_voltage(voltage)
 
             elif command == "set_current":
-                psu.set_current(values.get("current", 0))
+                current = values.get("current", 0)
+                print(f"[DEBUG] set_current({current})")
+                psu.set_current(current)
 
             elif command == "output_on":
+                print("[DEBUG] output_on()")
                 psu.output_on()
 
             elif command == "output_off":
+                print("[DEBUG] output_off()")
                 psu.output_off()
 
             else:
+                print(f"[DEBUG] Unknown PSU command: {command}")
                 return ActionResult(
                     action_id=action_id,
                     success=False,
-                    message="Unknown PSU action",
+                    message=f"Unknown PSU action '{command}'",
                     outputs={}
                 )
 
-            # ----------------------------------------------
-            # READ MEASUREMENTS
-            # ----------------------------------------------
-            voltage = psu.get_voltage()
-            current = psu.get_current()
+            # --------------------------------------------------
+            # READ MEASUREMENTS (CORRECT API)
+            # --------------------------------------------------
+            voltage = psu.measure_voltage()
+            current = psu.measure_current()
+
+            print(f"[DEBUG] PSU voltage read: {voltage}")
+            print(f"[DEBUG] PSU current read: {current}")
 
             return ActionResult(
                 action_id=action_id,
@@ -209,12 +237,15 @@ class ActionExecutor:
             )
 
         except Exception as e:
+            print(f"[DEBUG] Exception while executing PSU action: {e}")
             return ActionResult(
                 action_id=action_id,
                 success=False,
                 message=str(e),
                 outputs={}
             )
+
+
 
     # ==================================================
     # RASPBERRY PI

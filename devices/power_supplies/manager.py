@@ -52,13 +52,26 @@ class PowerSupplyManager:
     # --------------------------------------------------
 
     def _auto_connect(self):
+        print("[DEBUG] Auto-connect started")
+
         for ps in self.power_supplies.values():
-            if not ps.is_connected():
+            print(f"[DEBUG] Checking PSU: {ps.id}")
+
+            if ps.is_connected():
+                print(f"[DEBUG] PSU {ps.id} already connected")
+                continue
+
+            for port in serial.tools.list_ports.comports():
+                print(f"[DEBUG] Trying port {port.device} for PSU {ps.id}")
+
                 try:
-                    if ps.id == "owon_spe3051":
-                        ps.connect("COM12")
+                    ps.connect(port.device)
+                    print(f"[DEBUG] Auto-connected {ps.id} on {port.device}")
+                    break
                 except Exception as e:
-                    print(f"⚠ Failed to connect {ps.name}: {e}")
+                    print(f"[DEBUG] Failed to connect {ps.id} on {port.device}: {e}")
+
+
 
     # --------------------------------------------------
     # LOAD DRIVERS
@@ -73,8 +86,9 @@ class PowerSupplyManager:
                 continue
 
             module = importlib.import_module(f"devices.power_supplies.{module_name}")
+            print(f"[DEBUG] Loading PSU driver module: {module_name}")
 
-            for _, obj in inspect.getmembers(module, inspect.isclass):
+            for name, obj in inspect.getmembers(module, inspect.isclass):
 
                 # ignorăm clasele abstracte
                 if inspect.isabstract(obj):
@@ -84,11 +98,14 @@ class PowerSupplyManager:
                 if obj is PowerSupplyBase:
                     continue
 
-                # încărcăm doar driverele reale
-                if issubclass(obj, PowerSupplyBase):
+                # încărcăm doar driverele reale: subclass de PowerSupplyBase
+                # și definite în acest modul (nu importate din altă parte)
+                if issubclass(obj, PowerSupplyBase) and obj.__module__ == module.__name__:
                     instance = obj()
                     self.power_supplies[instance.id] = instance
-                    print(f"✓ Loaded Power Supply: {instance.name}")
+                    print(f"✓ Loaded Power Supply: ID={instance.id}, Name={instance.name}")
+
+
 
 
     # --------------------------------------------------
@@ -96,7 +113,7 @@ class PowerSupplyManager:
     # --------------------------------------------------
 
     def get_available(self):
-        self.check_for_changes()
+        #self.check_for_changes()
         return list(self.power_supplies.values())
 
     def get(self, id):
