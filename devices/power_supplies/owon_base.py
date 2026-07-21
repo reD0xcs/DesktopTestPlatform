@@ -1,6 +1,8 @@
+import time
 from abc import ABC
 from devices.power_supplies.base import PowerSupplyBase
-from owon_psu import OwonPSU
+from devices.power_supplies.owon_psu import OwonPSU
+
 
 class OwonBase(PowerSupplyBase, ABC):
 
@@ -56,22 +58,33 @@ class OwonBase(PowerSupplyBase, ABC):
             return False
 
 
+    # ==================================================
+    # ACTIONS WITH INDUSTRIAL DELAY
+    # ==================================================
 
     def set_voltage(self, voltage):
         if self.connected:
             self.psu.set_voltage(float(voltage))
+            time.sleep(0.25)   # OWON lag
 
     def set_current(self, current):
         if self.connected:
             self.psu.set_current(float(current))
+            time.sleep(0.25)   # OWON lag
 
     def output_on(self):
         if self.connected:
             self.psu.set_output(True)
+            time.sleep(0.35)   # OWON lag
 
     def output_off(self):
         if self.connected:
             self.psu.set_output(False)
+            time.sleep(0.35)   # OWON lag
+
+    # ==================================================
+    # MEASUREMENTS
+    # ==================================================
 
     def measure_voltage(self):
         if not self.connected:
