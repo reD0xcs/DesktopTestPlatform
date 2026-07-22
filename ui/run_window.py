@@ -170,6 +170,13 @@ class RunWindow(ctk.CTkToplevel):
     def run_product(self):
 
         total = len(self.product.actions)
+        # NUMĂRĂM DOAR PAȘII MARI
+        self.total_actions = len(self.product.actions)
+        self.current_step = 0
+
+        # UI INIT
+        self.set_step_label(f"Step 0 / {self.total_actions}")
+        self.set_overall_progress(0)
 
         if total == 0:
             self.append_log("Nothing to execute.")

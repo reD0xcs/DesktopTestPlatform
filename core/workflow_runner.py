@@ -188,15 +188,30 @@ class WorkflowRunner:
         # ==================================================
         # EXECUTE WORKFLOW (recursive)
         # ==================================================
-        self.run_actions(
-            actions,
-            results,
-            logs,
-            measurements,
-            progress_callback,
-            stop_callback,
-            pause_callback
-        )
+        for action in actions:
+
+            # UI: doar numele acțiunii înainte de execuție
+            if self.ui:
+                self.ui.set_current_action(action.action_id)
+
+            # EXECUTE ACTION (recursiv)
+            self.run_actions(
+                [action],
+                results,
+                logs,
+                measurements,
+                progress_callback,
+                stop_callback,
+                pause_callback
+            )
+
+            # UI: incrementare după execuție
+            if self.ui:
+                self.ui.current_step += 1
+                self.ui.set_step_label(f"Step {self.ui.current_step} / {self.ui.total_actions}")
+                self.ui.set_overall_progress(self.ui.current_step / self.ui.total_actions)
+
+
 
         # ==================================================
         # METADATA
