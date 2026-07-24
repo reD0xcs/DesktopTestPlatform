@@ -22,16 +22,33 @@ class WorkflowRunner:
     def eval_condition(self, values):
         left = values.get("left")
         op = values.get("op")
-        right = float(values.get("right"))
 
-        # citim valorile runtime
+        # LEFT operand
         if left == "voltage":
             lv = self.device_manager.power_supplies.measure_voltage()
+
         elif left == "current":
             lv = self.device_manager.power_supplies.measure_current()
-        else:
-            lv = float(left)
 
+        elif left == "numeric":
+            lv = float(values.get("numeric_value", 0))
+
+        else:
+            # dacă left este numeric string, îl convertim
+            try:
+                lv = float(left)
+            except:
+                raise ValueError(f"Invalid left operand: {left}")
+
+        # RIGHT operand
+        right_raw = values.get("right", values.get("numeric_value", None))
+
+        if right_raw is None:
+            raise ValueError("IF condition missing 'right' or 'numeric_value'")
+
+        right = float(right_raw)
+
+        # OPERATOR
         if op == ">": return lv > right
         if op == "<": return lv < right
         if op == "==": return lv == right
@@ -39,7 +56,8 @@ class WorkflowRunner:
         if op == ">=": return lv >= right
         if op == "<=": return lv <= right
 
-        return False
+        raise ValueError(f"Invalid operator: {op}")
+
 
     # ==================================================
     # RECURSIVE ACTION EXECUTION
