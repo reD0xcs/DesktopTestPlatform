@@ -17,7 +17,11 @@ class OwonPSU:
             raise Exception("Not connected to a supported PSU!")
 
     def close(self):
-        self.ser.close()
+        try:
+            if self.ser and self.ser.is_open:
+                self.ser.close()
+        except:
+            pass
 
     def __enter__(self):
         self.open()

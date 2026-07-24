@@ -13,8 +13,14 @@ class OwonBase(PowerSupplyBase, ABC):
     def connect(self, port):
         print(f"[DEBUG] Trying to connect OWON on port {port}")
 
-        self.psu = OwonPSU(port)
-        self.psu.open()
+        try:
+            self.psu = OwonPSU(port)
+            self.psu.open()
+        except Exception as e:
+            print(f"[DEBUG] Failed to open port {port}: {e}")
+            self.connected = False
+            self.psu = None
+            return False
 
         print(f"[DEBUG] Port opened: {self.psu.ser.is_open}")
         print(f"[DEBUG] Identity read attempt...")
@@ -22,12 +28,26 @@ class OwonBase(PowerSupplyBase, ABC):
         try:
             ident = self.psu.read_identity()
             print(f"[DEBUG] Identity response: {ident}")
+
+            if not ident or ident.strip() == "":
+                raise Exception("Empty identity response")
+
+            self.connected = True
+            print("[DEBUG] Connected flag set to True")
+            return True
+
         except Exception as e:
             print(f"[DEBUG] Identity read failed: {e}")
+            self.connected = False
 
-        self.connected = True
-        print(f"[DEBUG] Connected flag set to True")
-        return True
+            try:
+                self.psu.close()
+            except:
+                pass
+
+            self.psu = None
+            return False
+
 
 
     def disconnect(self):
@@ -47,6 +67,11 @@ class OwonBase(PowerSupplyBase, ABC):
             return False
 
         try:
+            if self.psu.ser is None:
+                print("[DEBUG] ser is None → NOT CONNECTED")
+                self.connected = False
+                return False
+
             print(f"[DEBUG] Serial open: {self.psu.ser.is_open}")
             self.connected = self.psu.ser.is_open
             print(f"[DEBUG] Final connected state: {self.connected}")

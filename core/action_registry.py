@@ -1,5 +1,6 @@
 from actions.system import get_actions as get_system_actions
 from actions.control import get_actions as get_control_actions
+from models import action
 
 
 class ActionRegistry:
@@ -62,7 +63,7 @@ class ActionRegistry:
 
         for action in self.get_actions():
 
-            if action.id == action_id:
+            if action.id == action_id or action.action_id == action_id:
                 return action
 
         

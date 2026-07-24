@@ -19,36 +19,52 @@ class WorkflowRunner:
     # ==================================================
     # CONDITION EVALUATOR
     # ==================================================
-    def eval_condition(self, values):
-        left = values.get("left")
-        op = values.get("op")
+    def eval_condition(self, cond_values):
+        if not isinstance(cond_values, dict):
+            raise Exception(f"ASSERT values must be dict, got {type(cond_values)}")
 
-        # LEFT operand
+        left = cond_values.get("left")
+        op = cond_values.get("op")
+
+        # ------------------------------------------------------
+        # GĂSIM PSU-UL CONECTAT FOLOSIND API-UL MANAGERULUI
+        # ------------------------------------------------------
+        psu_list = self.device_manager.power_supplies.get_available()
+        psu = next((p for p in psu_list if p.is_connected()), None)
+
+        if psu is None:
+            raise Exception("No PSU connected")
+
+        # ------------------------------------------------------
+        # LEFT OPERAND
+        # ------------------------------------------------------
         if left == "voltage":
-            lv = self.device_manager.power_supplies.measure_voltage()
+            lv = psu.measure_voltage()
 
         elif left == "current":
-            lv = self.device_manager.power_supplies.measure_current()
+            lv = psu.measure_current()
 
         elif left == "numeric":
-            lv = float(values.get("numeric_value", 0))
+            lv = float(cond_values.get("numeric_value", 0))
 
         else:
-            # dacă left este numeric string, îl convertim
             try:
                 lv = float(left)
             except:
                 raise ValueError(f"Invalid left operand: {left}")
 
-        # RIGHT operand
-        right_raw = values.get("right", values.get("numeric_value", None))
-
+        # ------------------------------------------------------
+        # RIGHT OPERAND
+        # ------------------------------------------------------
+        right_raw = cond_values.get("right", cond_values.get("numeric_value", None))
         if right_raw is None:
-            raise ValueError("IF condition missing 'right' or 'numeric_value'")
+            raise ValueError("IF/ASSERT condition missing 'right' or 'numeric_value'")
 
         right = float(right_raw)
 
+        # ------------------------------------------------------
         # OPERATOR
+        # ------------------------------------------------------
         if op == ">": return lv > right
         if op == "<": return lv < right
         if op == "==": return lv == right
@@ -57,6 +73,8 @@ class WorkflowRunner:
         if op == "<=": return lv <= right
 
         raise ValueError(f"Invalid operator: {op}")
+
+
 
 
     # ==================================================
@@ -74,6 +92,8 @@ class WorkflowRunner:
     ):
 
         for action in actions:
+
+            
 
             # STOP
             if stop_callback and stop_callback():
@@ -139,7 +159,13 @@ class WorkflowRunner:
             # CONTROL: ASSERT
             # ==================================================
             if action.action_id == "control.assert":
-                cond = self.eval_condition(action.values)
+                try:
+                    cond = self.eval_condition(action.values)
+                except Exception as e:
+                    msg = f"Assertion error: {e}"
+                    results.append(ActionResult(action_id=action.action_id, success=False, message=msg))
+                    logs.append(msg)
+                    return
 
                 if not cond:
                     msg = f"Assertion failed: {action.values}"
@@ -189,12 +215,12 @@ class WorkflowRunner:
     # RUN WORKFLOW (ENTRY POINT)
     # ==================================================
     def run(
-        self,
-        product,
-        actions,
-        progress_callback=None,
-        stop_callback=None,
-        pause_callback=None
+    self,
+    product,
+    actions,
+    progress_callback=None,
+    stop_callback=None,
+    pause_callback=None
     ):
 
         results = []
@@ -204,7 +230,7 @@ class WorkflowRunner:
         start_time = datetime.now()
 
         # ==================================================
-        # EXECUTE WORKFLOW (recursive)
+        # EXECUTE WORKFLOW (top-level actions)
         # ==================================================
         for action in actions:
 
@@ -212,7 +238,7 @@ class WorkflowRunner:
             if self.ui:
                 self.ui.set_current_action(action.action_id)
 
-            # EXECUTE ACTION (recursiv)
+            # EXECUTE ACTION (recursiv pentru IF/LOOP/ASSERT)
             self.run_actions(
                 [action],
                 results,
@@ -223,13 +249,15 @@ class WorkflowRunner:
                 pause_callback
             )
 
+            # 🔥 STOP GLOBAL: dacă ASSERT sau orice acțiune a dat FAIL → oprește workflow-ul
+            if results and not results[-1].success:
+                break
+
             # UI: incrementare după execuție
             if self.ui:
                 self.ui.current_step += 1
                 self.ui.set_step_label(f"Step {self.ui.current_step} / {self.ui.total_actions}")
                 self.ui.set_overall_progress(self.ui.current_step / self.ui.total_actions)
-
-
 
         # ==================================================
         # METADATA

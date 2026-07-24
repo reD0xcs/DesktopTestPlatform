@@ -13,6 +13,20 @@ class OwonSPE3051(OwonBase):
     def name(self):
         return "OWON SPE3051"
 
+    def connect(self, port):
+        print(f"[DEBUG] Trying to connect SPE3051 on port {port}")
+
+        if not super().connect(port):
+            return False
+
+        ident = self.psu.read_identity()
+        if "SPE3051" not in ident:
+            print("[DEBUG] Wrong device: expected SPE3051")
+            self.disconnect()
+            return False
+
+        return True
+    
     def get_actions(self):
         return [
 

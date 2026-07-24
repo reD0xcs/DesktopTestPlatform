@@ -65,9 +65,12 @@ class PowerSupplyManager:
                 print(f"[DEBUG] Trying port {port.device} for PSU {ps.id}")
 
                 try:
-                    ps.connect(port.device)
-                    print(f"[DEBUG] Auto-connected {ps.id} on {port.device}")
-                    break
+                    if ps.connect(port.device):
+                        print(f"[DEBUG] Auto-connected {ps.id} on {port.device}")
+                        break
+                    else:
+                        print(f"[DEBUG] {ps.id} did NOT match on {port.device}")
+
                 except Exception as e:
                     print(f"[DEBUG] Failed to connect {ps.id} on {port.device}: {e}")
 
@@ -113,7 +116,7 @@ class PowerSupplyManager:
     # --------------------------------------------------
 
     def get_available(self):
-        #self.check_for_changes()
+        self.check_for_changes()
         return list(self.power_supplies.values())
 
     def get(self, id):
